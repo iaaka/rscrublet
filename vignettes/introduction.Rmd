@@ -1,0 +1,120 @@
+---
+title: "How to run scrublet on various ssRNA-seq datsets."
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{How to run scrublet on various ssRNA-seq datsets.}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(rscrublet)
+library(Matrix)
+```
+## Run rscrublet on example dataset
+```{r}
+dim(pbmc8k)
+pbmc8k[1:2,1:2]
+```
+pbmc8k dataset is sparse cell*gene dgTMatrix with UMI counts
+```{r, fig.height = 4, fig.width = 8}
+scrr = scrub_doublets(E_obs = pbmc8k,expected_doublet_rate=0.06,min_counts=2, min_cells=3, min_gene_variability_pctl=85, n_prin_comps=30)
+# set threshould automatically 
+scrr=call_doublets(scrr)
+# examine score distribution
+plot_doublet_histogram(scrr)
+# find predicted doublets
+head(rownames(pbmc8k)[scrr$predicted_doublets])
+```
+## Run rscrublet on text files
+<br>
+Define temporary folder to store the data
+```{r}
+tmpdir = '~/rscrublet.test'
+```
+### download the data 
+```{r, cache=TRUE,results='hide'}
+if(dir.exists(tmpdir))
+  unlink(tmpdir)
+dir.create(tmpdir)
+download.file("https://cf.10xgenomics.com/samples/cell-exp/4.0.0/SC3_v3_NextGem_SI_Neuron_10K/SC3_v3_NextGem_SI_Neuron_10K_filtered_feature_bc_matrix.tar.gz", destfile =  paste0(tmpdir,"/data.tar.gz"))
+system(paste0('cd ',tmpdir,'; tar -xzvf data.tar.gz'))
+```
+### load into R
+```{r}
+m = t(readMM(paste0(tmpdir,'/filtered_feature_bc_matrix/matrix.mtx.gz')))
+rownames(m) = read.table(paste0(tmpdir,'/filtered_feature_bc_matrix/barcodes.tsv.gz'))[,1]
+colnames(m) = read.table(paste0(tmpdir,'/filtered_feature_bc_matrix/features.tsv.gz'))[,1]
+```
+```{r}
+dim(m)
+m[1:2,1:2]
+```
+### run rscrublet
+```{r}
+scrr = scrub_doublets(E_obs = m,expected_doublet_rate=0.06,min_counts=2, min_cells=3, min_gene_variability_pctl=85, n_prin_comps=30)
+```
+set threshould automatically 
+```{r, fig.height = 4, fig.width = 8}
+scrr=call_doublets(scrr)
+# examine score distribution
+plot_doublet_histogram(scrr,breaks = 100)
+```
+## Run rscrublet on Seurat dataset
+### prepare data
+```{r}
+library(Seurat)
+download.file("https://cf.10xgenomics.com/samples/cell-exp/4.0.0/Parent_NGSC3_DI_PBMC/Parent_NGSC3_DI_PBMC_filtered_feature_bc_matrix.h5",
+              destfile =  paste0(tmpdir,"/pbmc10k_filt.h5"))
+filt.matrix = Read10X_h5(paste0(tmpdir,"/pbmc10k_filt.h5"),use.names = T)
+srat    = CreateSeuratObject(counts = filt.matrix)
+srat = NormalizeData(srat)
+srat = ScaleData(srat)
+srat = FindVariableFeatures(srat)
+srat = RunPCA(srat, verbose = FALSE,npcs=15,approx=FALSE)
+srat = RunUMAP(srat, reduction = "pca", dims = 1:15, verbose = FALSE)
+```
+
+```{r, fig.height = 4, fig.width = 6}
+DimPlot(srat)
+```
+### run rscrublet
+```{r}
+count_matrix = t(as(srat@assays$RNA@counts,'dgTMatrix'))
+count_matrix[1:2,1:3]
+scrr = scrub_doublets(E_obs = count_matrix,expected_doublet_rate=0.06,min_counts=2, min_cells=3, min_gene_variability_pctl=85, n_prin_comps=30)
+```
+
+```{r, fig.height = 4, fig.width = 8}
+scrr=call_doublets(scrr)
+plot_doublet_histogram(scrr)
+```
+```{r, fig.height = 4, fig.width = 6}
+srat$doublet.score = scrr$doublet_scores_obs
+FeaturePlot(srat,features = 'doublet.score',cols=c('gray','red'))
+```
+## Run rscrublet on SCE dataset
+### prepare data
+```{r,results='hide'}
+library(scRNAseq)
+sce.zeisel = ZeiselBrainData()
+```
+
+
+```{r}
+count_matrix = as(t(sce.zeisel@assays@data$counts),'dgTMatrix')
+count_matrix[1:2,1:2]
+scrr = scrub_doublets(E_obs = count_matrix,expected_doublet_rate=0.06,min_counts=2, min_cells=3, min_gene_variability_pctl=85, n_prin_comps=30)
+```
+seems there are no doublets
+```{r, fig.height = 4, fig.width = 8}
+scrr=call_doublets(scrr)
+plot_doublet_histogram(scrr)
+```

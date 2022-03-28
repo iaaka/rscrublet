@@ -1,0 +1,28 @@
+Package: rscrublet
+Title: A tool for identifying doublets in single-cell RNA-seq data. 
+Version: 0.1
+Authors@R: 
+    person(given = "Pavel",
+           family = "Mazin",
+           role = c("aut", "cre"),
+           email = "iaa.aka@gmail.com",
+           comment = c(ORCID = "0000-0001-9268-3352"))
+Description: rscrublet is a R-version of python scrublet written by Allon Klein Lab (https://github.com/AllonKleinLab/scrublet, https://doi.org/10.1016/j.cels.2018.11.005).
+	Original code was directly translated from python to R, I attempted to preserve orignal code structure, function and variable names whenever possible.
+	The only difference that rscrublet is written in not OOP paradigm. Rscrublet is not fully tested yet, but at least with default settings it produces results that 
+	are exactly equal to results of python version if stochasticity is accounted correctly. 
+License: MIT + file LICENSE
+Imports:
+	RSpectra (>= 0.16-0),
+	RcppAnnoy (>= 0.0.18),
+	Matrix (>= 1.3)
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
+Depends: 
+    R (>= 2.10)
+Suggests: 
+    rmarkdown,
+    knitr
+VignetteBuilder: knitr
